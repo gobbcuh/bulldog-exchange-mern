@@ -5,6 +5,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const productRoutes = require("./routes/productRoutes");
 const authRoutes = require("./routes/authRoutes");
+const orderRoutes = require("./routes/orderRoutes");
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.get("/api/health", (req, res) => {
 
 app.use("/api", authRoutes);
 app.use("/api/products", productRoutes);
+app.use("/api/orders", orderRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

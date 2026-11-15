@@ -1,6 +1,7 @@
 
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
+const Order = require("../models/Order");
 
 const allowedFields = [
   "name",
@@ -163,9 +164,7 @@ async function deleteProduct(req, res) {
       });
     }
 
-    const product = await Product.findByIdAndDelete(
-      req.params.id
-    );
+    const product = await Product.findById(req.params.id);
 
     if (!product) {
       return res.status(404).json({
@@ -173,6 +172,23 @@ async function deleteProduct(req, res) {
         message: "Product not found",
       });
     }
+
+    const activeOrder = await Order.exists({
+      "items.product_id": product._id,
+      status: {
+        $in: ["pending", "processing", "shipped"],
+      },
+    });
+
+    if (activeOrder) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Cannot delete a product referenced by an active order",
+      });
+    }
+
+    await Product.findByIdAndDelete(product._id);
 
     return res.status(200).json({
       success: true,
