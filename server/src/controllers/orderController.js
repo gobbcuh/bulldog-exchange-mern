@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 const Product = require("../models/Product");
 const Order = require("../models/Order");
+const crypto = require("node:crypto");
 
 class CheckoutError extends Error {
   constructor(message, status = 400) {
@@ -11,11 +12,59 @@ class CheckoutError extends Error {
   }
 }
 
+
+function createRequestHash(items, paymentMethod) {
+  const normalizedItems = items
+    .map((item) => ({
+      product_id: item.product_id.toString().toLowerCase(),
+      size: item.size?.trim() ?? null,
+      quantity: item.quantity,
+    }))
+    .sort((a, b) => {
+      const first = JSON.stringify([
+        a.product_id,
+        a.size,
+      ]);
+
+      const second = JSON.stringify([
+        b.product_id,
+        b.size,
+      ]);
+
+      return first.localeCompare(second);
+    });
+
+  const payload = JSON.stringify({
+    items: normalizedItems,
+    payment_method: paymentMethod,
+  });
+
+  return crypto
+    .createHash("sha256")
+    .update(payload)
+    .digest("hex");
+}
+
 // POST /api/orders
 
 async function createOrder(req, res) {
   const items = req.body?.items;
   const paymentMethod = req.body?.payment_method ?? "cod";
+
+  const idempotencyKey = req.get("Idempotency-Key");
+
+  if (
+    typeof idempotencyKey !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      idempotencyKey
+    )
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "A valid Idempotency-Key header is required",
+    });
+  }
+
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
@@ -78,6 +127,40 @@ async function createOrder(req, res) {
       productId,
       (quantitiesByProduct.get(productId) ?? 0) + item.quantity
     );
+  }
+
+  const requestHash = createRequestHash(items, paymentMethod);
+
+  try {
+    const existingOrder = await Order.findOne({
+      user_id: req.user._id,
+      idempotency_key: idempotencyKey,
+    });
+
+    if (existingOrder) {
+      if (existingOrder.request_hash !== requestHash) {
+        return res.status(409).json({
+          success: false,
+          message: "Idempotency key was already used for a different order",
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Order already placed",
+        order_id: existingOrder._id.toString(),
+        total_price: existingOrder.total_price,
+        payment_method: existingOrder.payment_method,
+        replayed: true,
+      });
+    }
+  } catch (error) {
+    console.error("Idempotency lookup failed:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to verify checkout request",
+    });
   }
 
   let session;
@@ -188,6 +271,8 @@ async function createOrder(req, res) {
         [
           {
             user_id: req.user._id,
+            idempotency_key: idempotencyKey,
+            request_hash: requestHash,
             items: orderItems,
             total_price: totalCents / 100,
             payment_method: paymentMethod,
@@ -208,6 +293,14 @@ async function createOrder(req, res) {
       payment_method: createdOrder.payment_method,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A checkout request with this idempotency key already exists. Please retry with the same key.",
+      });
+    }
+
     if (error instanceof CheckoutError) {
       return res.status(error.status).json({
         success: false,

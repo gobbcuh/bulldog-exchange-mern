@@ -452,14 +452,12 @@ function Cart() {
                 confirmed at checkout.
               </p>
 
-              <button
-                type="button"
+              <Link
+                to="/checkout"
                 className="cart-checkout-button"
-                disabled
-                title="Checkout will be connected next"
               >
                 Proceed to Checkout →
-              </button>
+              </Link>
 
               <Link
                 to="/shop"

@@ -52,6 +52,17 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
+    idempotency_key: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+    },
+
+    request_hash: {
+      type: String,
+      match: /^[a-f0-9]{64}$/,
+    },
+
     items: {
       type: [orderItemSchema],
       required: true,
@@ -104,6 +115,16 @@ const orderSchema = new mongoose.Schema(
         delete ret._id;
         return ret;
       },
+    },
+  }
+);
+
+orderSchema.index(
+  { user_id: 1, idempotency_key: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      idempotency_key: { $type: "string" },
     },
   }
 );
