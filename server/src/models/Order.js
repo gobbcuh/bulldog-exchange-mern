@@ -15,6 +15,13 @@ const orderItemSchema = new mongoose.Schema(
       trim: true,
     },
 
+    size: {
+      type: String,
+      trim: true,
+      default: null,
+      maxlength: 20,
+    },    
+
     quantity: {
       type: Number,
       required: true,

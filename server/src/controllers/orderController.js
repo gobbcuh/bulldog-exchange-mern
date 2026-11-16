@@ -12,11 +12,11 @@ class CheckoutError extends Error {
 }
 
 // POST /api/orders
+
 async function createOrder(req, res) {
   const items = req.body?.items;
   const paymentMethod = req.body?.payment_method ?? "cod";
 
-  // Validate the request before opening a transaction.
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({
       success: false,
@@ -38,7 +38,8 @@ async function createOrder(req, res) {
     });
   }
 
-  const seenProducts = new Set();
+  const seenVariants = new Set();
+  const quantitiesByProduct = new Map();
 
   for (const item of items) {
     if (
@@ -48,24 +49,35 @@ async function createOrder(req, res) {
       !mongoose.isValidObjectId(item.product_id) ||
       !Number.isSafeInteger(item.quantity) ||
       item.quantity < 1 ||
-      item.quantity > 1000
+      item.quantity > 1000 ||
+      (item.size != null &&
+        (typeof item.size !== "string" ||
+          item.size.trim().length === 0 ||
+          item.size.trim().length > 20))
     ) {
       return res.status(400).json({
         success: false,
-        message: "Invalid product ID or quantity",
+        message: "Invalid product ID, quantity, or size",
       });
     }
 
-    const productId = item.product_id.toString();
+    const productId = item.product_id.toString().toLowerCase();
+    const size = item.size?.trim() ?? null;
+    const variantKey = JSON.stringify([productId, size]);
 
-    if (seenProducts.has(productId)) {
+    if (seenVariants.has(variantKey)) {
       return res.status(400).json({
         success: false,
-        message: "Duplicate products are not allowed",
+        message: "Duplicate product and size combinations are not allowed",
       });
     }
 
-    seenProducts.add(productId);
+    seenVariants.add(variantKey);
+
+    quantitiesByProduct.set(
+      productId,
+      (quantitiesByProduct.get(productId) ?? 0) + item.quantity
+    );
   }
 
   let session;
@@ -79,10 +91,11 @@ async function createOrder(req, res) {
       const orderItems = [];
       let totalCents = 0;
 
-      for (const item of items) {
-        const product = await Product.findById(
-          item.product_id
-        ).session(session);
+      // Validate and deduct inventory once per product.
+      const productsById = new Map();
+
+      for (const [productId, totalQuantity] of quantitiesByProduct) {
+        const product = await Product.findById(productId).session(session);
 
         if (!product) {
           throw new CheckoutError(
@@ -91,23 +104,59 @@ async function createOrder(req, res) {
           );
         }
 
-        if (product.stock < item.quantity) {
+        if (product.stock < totalQuantity) {
           throw new CheckoutError(
             `Not enough stock for ${product.name}`
           );
         }
 
-        // Convert peso prices to centavos for calculation.
+        const updatedProduct = await Product.findOneAndUpdate(
+          {
+            _id: product._id,
+            stock: { $gte: totalQuantity },
+          },
+          {
+            $inc: { stock: -totalQuantity },
+          },
+          {
+            new: true,
+            session,
+          }
+        );
+
+        if (!updatedProduct) {
+          throw new CheckoutError(
+            `Not enough stock for ${product.name}`
+          );
+        }
+
+        productsById.set(productId, product);
+      }
+
+      for (const item of items) {
+        const productId = item.product_id.toString().toLowerCase();
+        const product = productsById.get(productId);
+        const size = item.size?.trim() ?? null;
+
+        if (product.has_sizes) {
+          if (!size || !product.sizes.includes(size)) {
+            throw new CheckoutError(
+              `Invalid size selected for ${product.name}`
+            );
+          }
+        } else if (size !== null) {
+          throw new CheckoutError(
+            `${product.name} does not require a size`
+          );
+        }
+
         const priceCents = Math.round(product.price * 100);
 
         if (
           !Number.isSafeInteger(priceCents) ||
           priceCents < 0
         ) {
-          throw new CheckoutError(
-            "Invalid product price",
-            400
-          );
+          throw new CheckoutError("Invalid product price");
         }
 
         const lineTotal = priceCents * item.quantity;
@@ -126,30 +175,10 @@ async function createOrder(req, res) {
           );
         }
 
-        // Deduct stock only if enough remains.
-        const updatedProduct = await Product.findOneAndUpdate(
-          {
-            _id: product._id,
-            stock: { $gte: item.quantity },
-          },
-          {
-            $inc: { stock: -item.quantity },
-          },
-          {
-            new: true,
-            session,
-          }
-        );
-
-        if (!updatedProduct) {
-          throw new CheckoutError(
-            `Not enough stock for ${product.name}`
-          );
-        }
-
         orderItems.push({
           product_id: product._id,
           name: product.name,
+          size,
           quantity: item.quantity,
           price: priceCents / 100,
         });
@@ -205,7 +234,6 @@ async function createOrder(req, res) {
     }
   }
 }
-
 
 async function getMyOrders(req, res) {
   try {
