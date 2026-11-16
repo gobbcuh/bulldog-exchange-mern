@@ -1,0 +1,136 @@
+
+.login-page {
+  min-height: 75vh;
+  padding: 80px 24px 100px;
+  background: #0f1729;
+  color: #f5f7ff;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 448px;
+  margin: 0 auto;
+}
+
+.login-heading {
+  margin-bottom: 36px;
+  text-align: center;
+}
+
+.login-heading h1 {
+  margin: 0 0 8px;
+  color: #f5f7ff;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.login-heading p {
+  margin: 0;
+  color: #91afd3;
+  font-size: 16px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid #2d3b55;
+  border-radius: 10px;
+  background: #172238;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-field label {
+  color: #f5f7ff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.login-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #2d3b55;
+  border-radius: 7px;
+  outline: none;
+  background: #0f1729;
+  color: #f5f7ff;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.login-field input::placeholder {
+  color: #91afd3;
+}
+
+.login-field input:focus {
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.15);
+}
+
+.login-submit-button {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #f0b800, #ffcf32);
+  color: #0f1729;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.login-submit-button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.login-submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.login-signup-link {
+  margin: 0;
+  color: #91afd3;
+  text-align: center;
+  font-size: 16px;
+}
+
+.login-signup-link a {
+  color: #ffcc00;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.login-signup-link a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 56px 16px 80px;
+  }
+
+  .login-form {
+    padding: 22px 18px;
+  }
+
+  .login-heading h1 {
+    font-size: 26px;
+  }
+}
+
+.login-error {
+  margin: 0;
+  color: #ff8585;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}

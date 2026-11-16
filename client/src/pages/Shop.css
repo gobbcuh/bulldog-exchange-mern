@@ -1,0 +1,154 @@
+
+.shop-page {
+  min-height: 100vh;
+  background: #0f1729;
+}
+
+.shop-container {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding-left: 44px;
+  padding-right: 44px;
+}
+
+.shop-header {
+  padding: 32px 0;
+  border-bottom: 1px solid #243047;
+  background: #172033;
+}
+
+.shop-header h1 {
+  margin: 0 0 8px;
+  font-size: clamp(28px, 4vw, 40px);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.shop-header h1 span {
+  color: #facc15;
+}
+
+.shop-header p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.shop-content {
+  padding-top: 24px;
+  padding-bottom: 64px;
+}
+
+.shop-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.shop-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shop-category {
+  padding: 10px 16px;
+  border: 1px solid #334155;
+  border-radius: 999px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.shop-category:hover {
+  border-color: #facc15;
+  color: #f8fafc;
+}
+
+.shop-category.active {
+  border-color: transparent;
+  background: #facc15;
+  color: #0f1729;
+}
+
+.shop-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.shop-toolbar label,
+.shop-showing-count {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.shop-toolbar select {
+  padding: 10px 12px;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  background: #1e293b;
+  color: #f8fafc;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.shop-showing-count {
+  margin-left: auto;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.shop-empty {
+  padding: 80px 16px;
+  text-align: center;
+}
+
+.shop-empty h2 {
+  color: #94a3b8;
+  font-size: 20px;
+}
+
+.shop-empty p {
+  color: #64748b;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .shop-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .shop-container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+
+  .shop-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .shop-showing-count {
+    display: none;
+  }
+}
+
+@media (max-width: 400px) {
+  .shop-grid {
+    grid-template-columns: 1fr;
+  }
+}
