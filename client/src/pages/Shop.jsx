@@ -4,23 +4,29 @@ import { fetchProducts } from "../services/products";
 import ProductCard from "../components/ProductCard";
 import "./Shop.css";
 
-const categories = [
-  "All",
-  "Uniforms",
-  "T-Shirts",
-  "Hoodies",
-  "Jackets",
-  "Bottoms",
-  "Bags",
-  "Accessories",
-];
-
 function Shop() {
   const [products, setProducts] = useState([]);
   const [category, setCategory] = useState("All");
   const [sort, setSort] = useState("default");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  
+  const categories = useMemo(() => {
+    const availableCategories = products
+      .map((product) => product.category)
+      .filter(
+        (value) =>
+          typeof value === "string" &&
+          value.trim().length > 0
+      );
+  
+    return [
+      "All",
+      ...new Set(availableCategories),
+    ];
+  }, [products]);
+  
 
   useEffect(() => {
     let active = true;
