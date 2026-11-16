@@ -1,0 +1,148 @@
+
+.admin-orders-page {
+  max-width: 1300px;
+  margin: 0 auto;
+  padding: 56px 32px 90px;
+  color: #f5f7fc;
+}
+
+.admin-orders-eyebrow {
+  color: #ffcb05;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.admin-orders-page h1 {
+  margin: 12px 0;
+  font-size: clamp(30px, 4vw, 44px);
+}
+
+.admin-orders-description {
+  color: #a9bddb;
+  margin-bottom: 32px;
+}
+
+.admin-orders-list {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-order-card {
+  padding: 24px;
+  background: #172238;
+  border: 1px solid #30405d;
+  border-radius: 14px;
+}
+
+.admin-order-header,
+.admin-order-bottom,
+.admin-order-items > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.admin-order-header h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.admin-order-header p {
+  margin: 5px 0;
+  color: #a9bddb;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.admin-order-status {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border-radius: 20px;
+  background: #30405d;
+  color: #ffcb05;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.admin-order-items {
+  margin: 22px 0;
+  padding: 18px 0;
+  border-top: 1px solid #30405d;
+  border-bottom: 1px solid #30405d;
+}
+
+.admin-order-items > div {
+  padding: 8px 0;
+  font-size: 14px;
+}
+
+.admin-order-bottom {
+  align-items: center;
+}
+
+.admin-order-bottom > div:first-child span,
+.admin-order-bottom > div:first-child strong {
+  display: block;
+  margin: 6px 0;
+}
+
+.admin-order-bottom span {
+  color: #a9bddb;
+}
+
+.admin-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-order-actions button {
+  padding: 11px 15px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffcb05;
+  color: #101828;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.admin-order-actions .admin-cancel-order {
+  background: #482d36;
+  color: #ffb4b4;
+}
+
+.admin-order-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-orders-error,
+.admin-orders-notice {
+  padding: 14px;
+  border-radius: 8px;
+}
+
+.admin-orders-error {
+  background: #482d36;
+  color: #ffb4b4;
+}
+
+.admin-orders-notice {
+  background: #193c32;
+  color: #b2f5d6;
+}
+
+@media (max-width: 650px) {
+  .admin-orders-page {
+    padding: 32px 18px;
+  }
+
+  .admin-order-header,
+  .admin-order-bottom {
+    flex-direction: column;
+  }
+}

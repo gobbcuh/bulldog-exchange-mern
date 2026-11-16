@@ -1,3 +1,4 @@
+import { authenticatedFetch } from "./api";
 
 const API_BASE_URL = "http://localhost:5000/api";
 
@@ -25,5 +26,31 @@ export async function fetchProductById(id) {
   }
 
   return response.json();
+}
+
+export async function createAdminProduct(token, data) {
+  return authenticatedFetch("/products", token, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateAdminProduct(token, id, data) {
+  return authenticatedFetch(
+    `/products/${encodeURIComponent(id)}`,
+    token,
+    {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function deleteAdminProduct(token, id) {
+  return authenticatedFetch(
+    `/products/${encodeURIComponent(id)}`,
+    token,
+    { method: "DELETE" }
+  );
 }
 
