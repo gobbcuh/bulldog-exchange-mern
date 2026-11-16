@@ -1,8 +1,19 @@
 
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "./Navbar.css";
 
 function Navbar() {
+  const navigate = useNavigate();
+  const { user, isAuthenticated, signOut } = useAuth();
+
+  const initial = user?.name?.trim()?.charAt(0)?.toUpperCase() || "D";
+
+  function handleLogout() {
+    signOut();
+    navigate("/login", { replace: true });
+  }
+
   return (
     <header className="site-header">
       <nav className="navbar">
@@ -61,13 +72,33 @@ function Navbar() {
             </svg>
           </Link>
 
-          <Link
-            className="profile-avatar"
-            to="/login"
-            aria-label="Login"
-          >
-            D
-          </Link>
+          {isAuthenticated ? (
+            <div className="navbar-account">
+              <span
+                className="profile-avatar"
+                title={user?.name || "Signed-in user"}
+                aria-label={`Signed in as ${user?.name || "user"}`}
+              >
+                {initial}
+              </span>
+
+              <button
+                type="button"
+                className="navbar-logout"
+                onClick={handleLogout}
+              >
+                LOGOUT
+              </button>
+            </div>
+          ) : (
+            <Link
+              className="profile-avatar"
+              to="/login"
+              aria-label="Login"
+            >
+              D
+            </Link>
+          )}
         </div>
       </nav>
     </header>

@@ -2,10 +2,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUser } from "../services/auth";
+import { useAuth } from "../context/AuthContext";
 import "./Login.css";
 
 function Login() {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,28 +28,17 @@ function Login() {
       const data = await loginUser(
         email.trim(),
         password
-    );
+      );
 
       if (!data.token || !data.user) {
         throw new Error("Invalid login response.");
       }
 
-      // Temporary session storage for this development stage.
-      // A centralized authentication context will follow.
-      sessionStorage.setItem(
-        "bulldog-exchange-token",
-        data.token
-      );
-
-      sessionStorage.setItem(
-        "bulldog-exchange-user",
-        JSON.stringify(data.user)
-      );
+      // Save the session and update shared authentication state.
+      signIn(data.token, data.user);
 
       setPassword("");
 
-      // Administrators and customers will eventually have
-      // different destinations after authentication.
       if (data.user.role === "admin") {
         navigate("/", { replace: true });
       } else {

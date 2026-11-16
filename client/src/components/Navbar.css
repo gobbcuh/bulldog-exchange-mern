@@ -77,3 +77,34 @@
     gap: 18px;
   }
 }
+
+
+/* Authentication controls */
+
+.navbar-account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.navbar-logout {
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+}
+
+.navbar-logout:hover {
+  color: #facc15;
+}
+
+.navbar-logout:focus-visible {
+  outline: 2px solid #facc15;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
