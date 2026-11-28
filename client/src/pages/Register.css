@@ -1,0 +1,139 @@
+.register-page {
+  min-height: 75vh;
+  padding: 64px 24px 88px;
+  background: #0f1729;
+  color: #f5f7ff;
+}
+
+.register-container {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.register-heading {
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.register-heading h1 {
+  margin: 0 0 8px;
+  color: #f5f7ff;
+  font-size: 30px;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.register-heading p {
+  margin: 0;
+  color: #91afd3;
+  font-size: 16px;
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 28px;
+  border: 1px solid #2d3b55;
+  border-radius: 10px;
+  background: #172238;
+}
+
+.register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.register-field label {
+  color: #f5f7ff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.register-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid #2d3b55;
+  border-radius: 7px;
+  outline: none;
+  background: #0f1729;
+  color: #f5f7ff;
+  font: inherit;
+}
+
+.register-field input::placeholder {
+  color: #91afd3;
+}
+
+.register-field input:focus {
+  border-color: #ffcc00;
+  box-shadow: 0 0 0 2px rgba(255, 204, 0, 0.15);
+}
+
+.register-field small {
+  color: #91afd3;
+  font-size: 13px;
+}
+
+.register-submit-button {
+  width: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 7px;
+  background: linear-gradient(90deg, #f0b800, #ffcf32);
+  color: #0f1729;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.register-submit-button:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.register-submit-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.register-login-link {
+  margin: 0;
+  color: #91afd3;
+  text-align: center;
+  font-size: 16px;
+}
+
+.register-login-link a {
+  color: #ffcc00;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.register-login-link a:hover {
+  text-decoration: underline;
+}
+
+.register-error {
+  margin: 0;
+  color: #ff8585;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 480px) {
+  .register-page {
+    padding: 48px 16px 72px;
+  }
+
+  .register-form {
+    padding: 22px 18px;
+  }
+
+  .register-heading h1 {
+    font-size: 26px;
+  }
+}

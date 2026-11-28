@@ -1,14 +1,17 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { loginUser } from "../services/auth";
 import { useAuth } from "../context/AuthContext";
 import "./Login.css";
 
 function Login() {
+  const location = useLocation();
   const navigate = useNavigate();
   const { signIn } = useAuth();
 
+  const registrationSuccess =
+    location.state?.registrationSuccess;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -67,6 +70,12 @@ function Login() {
           className="login-form"
           onSubmit={handleSubmit}
         >
+          {registrationSuccess && (
+            <p className="login-success" role="status">
+              {registrationSuccess}
+            </p>
+          )}
+
           <div className="login-field">
             <label htmlFor="login-email">
               Email
