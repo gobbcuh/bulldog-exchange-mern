@@ -52,6 +52,64 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
+    customer_name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
+
+    customer_email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      maxlength: 254,
+    },
+
+    customer_phone: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 30,
+    },
+
+    fulfillment_method: {
+      type: String,
+      enum: ["pickup", "delivery"],
+      required: true,
+    },
+
+    pickup_location: {
+      type: String,
+      enum: ["nu manila"],
+      default: null,
+    },
+
+    delivery_area: {
+      type: String,
+      enum: ["manila", "laguna", "cebu", "davao"],
+      default: null,
+    },
+
+    delivery_address: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null,
+    },
+
+    shipping_fee: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+
+    stock_reserved: {
+      type: Boolean,
+      default: true,
+    },
+
     idempotency_key: {
       type: String,
       trim: true,
@@ -82,13 +140,55 @@ const orderSchema = new mongoose.Schema(
 
     payment_method: {
       type: String,
-      enum: ["cod"],
+      enum: ["cod", "paymongo"],
       default: "cod",
+    },
+
+    payment_status: {
+      type: String,
+      enum: ["unpaid", "pending", "paid", "failed", "refunded"],
+      default: "unpaid",
+    },
+
+    paymongo_checkout_session_id: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+
+    paymongo_checkout_url: {
+      type: String,
+      trim: true,
+      default: null,
+      select: false,
+    },
+
+    payment_session_creating: {
+      type: Boolean,
+      default: false,
+    },
+
+    payment_session_started_at: {
+      type: Date,
+      default: null,
+    },
+
+    payment_expires_at: {
+      type: Date,
+      default: null,
+    },
+
+    quote_created_at: {
+      type: Date,
+      default: null,
     },
 
     status: {
       type: String,
       enum: [
+        "quote_required",
+        "awaiting_quote_approval",
+        "pending_payment",
         "pending",
         "processing",
         "shipped",

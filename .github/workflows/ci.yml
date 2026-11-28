@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+
+      - name: Start MongoDB replica set
+        run: |
+          docker run --detach --name bulldog-mongo-test -p 27017:27017 mongo:7 --replSet rs0 --bind_ip_all
+          for attempt in $(seq 1 30); do
+            if docker exec bulldog-mongo-test mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec bulldog-mongo-test mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+          for attempt in $(seq 1 30); do
+            if docker exec bulldog-mongo-test mongosh --quiet --eval "rs.status().myState" 2>/dev/null | grep -q 1; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "MongoDB replica set did not become ready."
+          exit 1
+
+      - name: Install server dependencies
+        run: npm ci
+        working-directory: server
+
+      - name: Test server API
+        run: npm test
+        working-directory: server
+        env:
+          MONGO_TEST_URI: mongodb://127.0.0.1:27017/bulldog_exchange_test?replicaSet=rs0
+
+      - name: Install client dependencies
+        run: npm ci
+        working-directory: client
+
+      - name: Lint client
+        run: npm run lint
+        working-directory: client
+
+      - name: Build client
+        run: npm run build
+        working-directory: client
+        env:
+          VITE_API_BASE_URL: https://api.example.invalid/api

@@ -1,6 +1,4 @@
-import { authenticatedFetch } from "./api";
-
-const API_BASE_URL = "http://localhost:5000/api";
+import { API_BASE_URL, authenticatedFetch } from "./api";
 
 export async function fetchProducts() {
   const response = await fetch(`${API_BASE_URL}/products`);

@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import {
   fetchAdminOrders,
   updateAdminOrderStatus,
+  setAdminDeliveryQuote,
 } from "../services/adminOrders";
 import "./AdminOrders.css";
 
@@ -26,6 +27,7 @@ function AdminOrders() {
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [quoteFees, setQuoteFees] = useState({});
 
   const loadOrders = useCallback(async () => {
     try {
@@ -106,6 +108,52 @@ async function changeStatus(order, status) {
   }
 }
 
+async function saveDeliveryQuote(order) {
+  if (busyId) return;
+
+  const orderId = order.id ?? order._id;
+  const fee = Number(quoteFees[orderId]);
+
+  if (!Number.isFinite(fee) || fee < 0) {
+    setError("Enter a valid delivery quote.");
+    return;
+  }
+
+  setBusyId(orderId);
+  setError("");
+  setNotice("");
+
+  try {
+    const result = await setAdminDeliveryQuote(
+      token,
+      orderId,
+      fee
+    );
+
+    if (!result?.success || !result.order) {
+      throw new Error("Delivery quote was not saved.");
+    }
+
+    setOrders((current) =>
+      current.map((item) =>
+        (item.id ?? item._id) === orderId
+          ? result.order
+          : item
+      )
+    );
+    setNotice(
+      "Quote saved. Contact the customer so they can approve it in My Orders."
+    );
+  } catch (err) {
+    if (err.status === 401) {
+      handleUnauthorized(token);
+    }
+    setError(err.message || "Unable to save delivery quote.");
+  } finally {
+    setBusyId(null);
+  }
+}
+
   return (
     <section className="admin-orders-page">
       <p className="admin-orders-eyebrow">
@@ -126,9 +174,13 @@ async function changeStatus(order, status) {
           {orders.map((order) => {
             const next = nextStatus[order.status];
             const orderId = order.id ?? order._id;
-            const canCancel = ["pending", "processing"].includes(
-              order.status
-            );
+            const canCancel = [
+              "quote_required",
+              "awaiting_quote_approval",
+              "pending_payment",
+              "pending",
+              "processing",
+            ].includes(order.status);
 
             return (
                 <article className="admin-order-card" key={orderId}>
@@ -140,13 +192,30 @@ async function changeStatus(order, status) {
                     <p>
                       {new Date(order.createdAt).toLocaleString("en-PH")}
                     </p>
-                    <p>
-                      Customer ID: {String(order.user_id)}
-                    </p>
+                    <p>Customer: {order.customer_name}</p>
+                    <p>Email: {order.customer_email}</p>
+                    <p>Phone: {order.customer_phone}</p>
                   </div>
                   <span className="admin-order-status">
                     {order.status}
                   </span>
+                </div>
+
+                <div className="admin-order-fulfillment">
+                  <strong>
+                    {order.fulfillment_method === "delivery"
+                      ? `Delivery · ${order.delivery_area}`
+                      : `Pickup · ${order.pickup_location}`}
+                  </strong>
+                  {order.fulfillment_method === "delivery" && (
+                    <p>{order.delivery_address}</p>
+                  )}
+                  <p>
+                    Payment:{" "}
+                    {order.payment_method === "paymongo"
+                      ? `PayMongo (${order.payment_status})`
+                      : `Cash on delivery / pickup (${order.payment_status})`}
+                  </p>
                 </div>
 
                 <div className="admin-order-items">
@@ -167,11 +236,51 @@ async function changeStatus(order, status) {
 
                 <div className="admin-order-bottom">
                   <div>
-                    <span>Payment: Cash on Delivery</span>
-                    <strong>Total: {peso(order.total_price)}</strong>
+                    <span>
+                      {order.shipping_fee == null
+                        ? "Delivery fee: awaiting quote"
+                        : `Delivery fee: ${peso(order.shipping_fee)}`}
+                    </span>
+                    <strong>
+                      Total:{" "}
+                      {peso(
+                        order.total_price +
+                          (order.status === "awaiting_quote_approval"
+                            ? order.shipping_fee || 0
+                            : 0)
+                      )}
+                    </strong>
                   </div>
 
                   <div className="admin-order-actions">
+                    {order.status === "quote_required" && (
+                      <div className="admin-quote-editor">
+                        <label htmlFor={`quote-${orderId}`}>
+                          Delivery fee (PHP)
+                        </label>
+                        <input
+                          id={`quote-${orderId}`}
+                          type="number"
+                          min="0"
+                          max="100000"
+                          step="0.01"
+                          value={quoteFees[orderId] ?? ""}
+                          onChange={(event) =>
+                            setQuoteFees((current) => ({
+                              ...current,
+                              [orderId]: event.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          disabled={Boolean(busyId)}
+                          onClick={() => saveDeliveryQuote(order)}
+                        >
+                          Save Quote
+                        </button>
+                      </div>
+                    )}
                     {next && (
                       <button
                         disabled={Boolean(busyId)}

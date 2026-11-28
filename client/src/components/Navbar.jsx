@@ -74,6 +74,7 @@ function Navbar() {
 
           {isAuthenticated ? (
             <div className="navbar-account">
+              <Link to="/orders">MY ORDERS</Link>
               <span
                 className="profile-avatar"
                 title={user?.name || "Signed-in user"}

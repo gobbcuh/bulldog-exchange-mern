@@ -13,7 +13,7 @@ class CheckoutError extends Error {
 }
 
 
-function createRequestHash(items, paymentMethod) {
+function createRequestHash(items, paymentMethod, fulfillment) {
   const normalizedItems = items
     .map((item) => ({
       product_id: item.product_id.toString().toLowerCase(),
@@ -37,6 +37,7 @@ function createRequestHash(items, paymentMethod) {
   const payload = JSON.stringify({
     items: normalizedItems,
     payment_method: paymentMethod,
+    fulfillment,
   });
 
   return crypto
@@ -50,6 +51,12 @@ function createRequestHash(items, paymentMethod) {
 async function createOrder(req, res) {
   const items = req.body?.items;
   const paymentMethod = req.body?.payment_method ?? "cod";
+  const fulfillment = req.body?.fulfillment;
+  const fulfillmentMethod = fulfillment?.method;
+  const customerPhone =
+    typeof fulfillment?.phone === "string"
+      ? fulfillment.phone.trim()
+      : "";
 
   const idempotencyKey = req.get("Idempotency-Key");
 
@@ -80,10 +87,56 @@ async function createOrder(req, res) {
     });
   }
 
-  if (paymentMethod !== "cod") {
+  if (!["cod", "paymongo"].includes(paymentMethod)) {
     return res.status(400).json({
       success: false,
       message: "Unsupported payment method",
+    });
+  }
+
+  if (
+    !fulfillment ||
+    !["pickup", "delivery"].includes(fulfillmentMethod) ||
+    !/^\+?[0-9][0-9\s()-]{6,28}$/.test(customerPhone)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Choose a fulfillment method and enter a valid phone number",
+    });
+  }
+
+  const normalizedFulfillment = {
+    method: fulfillmentMethod,
+    phone: customerPhone,
+    pickup_location:
+      fulfillmentMethod === "pickup"
+        ? fulfillment.pickup_location
+        : null,
+    delivery_area:
+      fulfillmentMethod === "delivery"
+        ? fulfillment.delivery_area
+        : null,
+    delivery_address:
+      fulfillmentMethod === "delivery" &&
+      typeof fulfillment.delivery_address === "string"
+        ? fulfillment.delivery_address.trim()
+        : null,
+  };
+
+  if (
+    (fulfillmentMethod === "pickup" &&
+      normalizedFulfillment.pickup_location !== "nu manila") ||
+    (fulfillmentMethod === "delivery" &&
+      (!["manila", "laguna", "cebu", "davao"].includes(
+        normalizedFulfillment.delivery_area
+      ) ||
+        !normalizedFulfillment.delivery_address ||
+        normalizedFulfillment.delivery_address.length < 10 ||
+        normalizedFulfillment.delivery_address.length > 500))
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter valid fulfillment details",
     });
   }
 
@@ -129,7 +182,11 @@ async function createOrder(req, res) {
     );
   }
 
-  const requestHash = createRequestHash(items, paymentMethod);
+  const requestHash = createRequestHash(
+    items,
+    paymentMethod,
+    normalizedFulfillment
+  );
 
   try {
     const existingOrder = await Order.findOne({
@@ -151,6 +208,8 @@ async function createOrder(req, res) {
         order_id: existingOrder._id.toString(),
         total_price: existingOrder.total_price,
         payment_method: existingOrder.payment_method,
+        fulfillment_method: existingOrder.fulfillment_method,
+        status: existingOrder.status,
         replayed: true,
       });
     }
@@ -173,6 +232,7 @@ async function createOrder(req, res) {
     await session.withTransaction(async () => {
       const orderItems = [];
       let totalCents = 0;
+      const stockReserved = fulfillmentMethod === "pickup";
 
       // Validate and deduct inventory once per product.
       const productsById = new Map();
@@ -189,28 +249,32 @@ async function createOrder(req, res) {
 
         if (product.stock < totalQuantity) {
           throw new CheckoutError(
-            `Not enough stock for ${product.name}`
+            `Not enough stock for ${product.name}`,
+            409
           );
         }
 
-        const updatedProduct = await Product.findOneAndUpdate(
-          {
-            _id: product._id,
-            stock: { $gte: totalQuantity },
-          },
-          {
-            $inc: { stock: -totalQuantity },
-          },
-          {
-            new: true,
-            session,
-          }
-        );
-
-        if (!updatedProduct) {
-          throw new CheckoutError(
-            `Not enough stock for ${product.name}`
+        if (stockReserved) {
+          const updatedProduct = await Product.findOneAndUpdate(
+            {
+              _id: product._id,
+              stock: { $gte: totalQuantity },
+            },
+            {
+              $inc: { stock: -totalQuantity },
+            },
+            {
+              new: true,
+              session,
+            }
           );
+
+          if (!updatedProduct) {
+            throw new CheckoutError(
+              `Not enough stock for ${product.name}`,
+              409
+            );
+          }
         }
 
         productsById.set(productId, product);
@@ -275,8 +339,29 @@ async function createOrder(req, res) {
             request_hash: requestHash,
             items: orderItems,
             total_price: totalCents / 100,
+            customer_name: req.user.name,
+            customer_email: req.user.email,
+            customer_phone: customerPhone,
+            fulfillment_method: fulfillmentMethod,
+            pickup_location: normalizedFulfillment.pickup_location,
+            delivery_area: normalizedFulfillment.delivery_area,
+            delivery_address: normalizedFulfillment.delivery_address,
+            shipping_fee:
+              fulfillmentMethod === "pickup" ? 0 : null,
+            stock_reserved: stockReserved,
             payment_method: paymentMethod,
-            status: "pending",
+            payment_status:
+              paymentMethod === "paymongo" ? "pending" : "unpaid",
+            payment_expires_at:
+              paymentMethod === "paymongo"
+                ? new Date(Date.now() + 30 * 60 * 1000)
+                : null,
+            status:
+              fulfillmentMethod === "delivery"
+                ? "quote_required"
+                : paymentMethod === "paymongo"
+                  ? "pending_payment"
+                  : "pending",
           },
         ],
         { session }
@@ -287,10 +372,17 @@ async function createOrder(req, res) {
 
     return res.status(201).json({
       success: true,
-      message: "Order placed successfully",
+      message:
+        fulfillmentMethod === "delivery"
+          ? "Delivery request submitted for a shipping quote"
+          : paymentMethod === "paymongo"
+            ? "Order created; online payment is pending"
+            : "Order placed successfully",
       order_id: createdOrder._id.toString(),
       total_price: createdOrder.total_price,
       payment_method: createdOrder.payment_method,
+      fulfillment_method: createdOrder.fulfillment_method,
+      status: createdOrder.status,
     });
   } catch (error) {
     if (error.code === 11000) {
@@ -401,6 +493,305 @@ async function getOrderById(req, res) {
   }
 }
 
+async function setDeliveryQuote(req, res) {
+  const { id } = req.params;
+  const shippingFee = req.body?.shipping_fee;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid order ID",
+    });
+  }
+
+  if (
+    typeof shippingFee !== "number" ||
+    !Number.isFinite(shippingFee) ||
+    shippingFee < 0 ||
+    shippingFee > 100000
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Enter a valid delivery quote",
+    });
+  }
+
+  try {
+    const feeCents = Math.round(shippingFee * 100);
+
+    if (!Number.isSafeInteger(feeCents)) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid delivery quote",
+      });
+    }
+
+    const order = await Order.findOneAndUpdate(
+      {
+        _id: id,
+        fulfillment_method: "delivery",
+        status: "quote_required",
+      },
+      {
+        $set: {
+          shipping_fee: feeCents / 100,
+          status: "awaiting_quote_approval",
+          quote_created_at: new Date(),
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!order) {
+      return res.status(409).json({
+        success: false,
+        message: "This order is not awaiting a delivery quote",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Delivery quote saved; contact the customer for approval",
+      order,
+    });
+  } catch (error) {
+    console.error("Failed to save delivery quote:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to save delivery quote",
+    });
+  }
+}
+
+async function acceptDeliveryQuote(req, res) {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid order ID",
+    });
+  }
+
+  let session;
+
+  try {
+    session = await mongoose.startSession();
+    let acceptedOrder;
+
+    await session.withTransaction(async () => {
+      const order = await Order.findOne({
+        _id: id,
+        user_id: req.user._id,
+        status: "awaiting_quote_approval",
+        fulfillment_method: "delivery",
+      }).session(session);
+
+      if (!order) {
+        throw new CheckoutError(
+          "This delivery quote is no longer available",
+          409
+        );
+      }
+
+      const quantitiesByProduct = new Map();
+      for (const item of order.items) {
+        const productId = item.product_id.toString();
+        quantitiesByProduct.set(
+          productId,
+          (quantitiesByProduct.get(productId) ?? 0) + item.quantity
+        );
+      }
+
+      for (const [productId, quantity] of quantitiesByProduct) {
+        const product = await Product.findOneAndUpdate(
+          {
+            _id: productId,
+            stock: { $gte: quantity },
+          },
+          {
+            $inc: { stock: -quantity },
+          },
+          {
+            new: true,
+            session,
+          }
+        );
+
+        if (!product) {
+          throw new CheckoutError(
+            "Some items are no longer available. Contact the store.",
+            409
+          );
+        }
+
+        const orderedItems = order.items.filter(
+          (item) => item.product_id.toString() === productId
+        );
+        const invalidVariant = orderedItems.some((item) =>
+          product.has_sizes
+            ? !item.size || !product.sizes.includes(item.size)
+            : item.size !== null
+        );
+
+        if (invalidVariant) {
+          throw new CheckoutError(
+            `${product.name} is no longer available in the requested size`,
+            409
+          );
+        }
+      }
+
+      const subtotalCents = order.items.reduce(
+        (total, item) =>
+          total + Math.round(item.price * 100) * item.quantity,
+        0
+      );
+      const shippingCents = Math.round(order.shipping_fee * 100);
+      const paymentMethod = order.payment_method;
+
+      if (
+        !Number.isSafeInteger(subtotalCents) ||
+        !Number.isSafeInteger(shippingCents) ||
+        !Number.isSafeInteger(subtotalCents + shippingCents)
+      ) {
+        throw new CheckoutError("Order total exceeds supported range");
+      }
+
+      acceptedOrder = await Order.findOneAndUpdate(
+        {
+          _id: id,
+          user_id: req.user._id,
+          status: "awaiting_quote_approval",
+        },
+        {
+          $set: {
+            status:
+              paymentMethod === "paymongo"
+                ? "pending_payment"
+                : "pending",
+            payment_status:
+              paymentMethod === "paymongo" ? "pending" : "unpaid",
+            total_price: (subtotalCents + shippingCents) / 100,
+            stock_reserved: true,
+            payment_expires_at:
+              paymentMethod === "paymongo"
+                ? new Date(Date.now() + 30 * 60 * 1000)
+                : null,
+          },
+        },
+        {
+          new: true,
+          runValidators: true,
+          session,
+        }
+      );
+
+      if (!acceptedOrder) {
+        throw new CheckoutError(
+          "This delivery quote is no longer available",
+          409
+        );
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message:
+        acceptedOrder.payment_method === "paymongo"
+          ? "Quote accepted; continue to online payment"
+          : "Quote accepted; your order is confirmed",
+      order: acceptedOrder,
+    });
+  } catch (error) {
+    if (error instanceof CheckoutError) {
+      return res.status(error.status).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    console.error("Failed to accept delivery quote:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to accept delivery quote",
+    });
+  } finally {
+    if (session) {
+      await session.endSession();
+    }
+  }
+}
+
+async function rejectDeliveryQuote(req, res) {
+  const { id } = req.params;
+
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid order ID",
+    });
+  }
+
+  try {
+    const filter = {
+      _id: id,
+      user_id: req.user._id,
+      status: "awaiting_quote_approval",
+      stock_reserved: false,
+    };
+    const existingOrder = await Order.findOne(filter).select(
+      "payment_method"
+    );
+
+    if (!existingOrder) {
+      return res.status(409).json({
+        success: false,
+        message: "This delivery quote can no longer be declined",
+      });
+    }
+
+    const order = await Order.findOneAndUpdate(
+      filter,
+      {
+        $set: {
+          status: "cancelled",
+          ...(existingOrder.payment_method === "paymongo"
+            ? { payment_status: "failed" }
+            : {}),
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!order) {
+      return res.status(409).json({
+        success: false,
+        message: "This delivery quote can no longer be declined",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Delivery quote declined",
+      order,
+    });
+  } catch (error) {
+    console.error("Failed to decline delivery quote:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to decline delivery quote",
+    });
+  }
+}
 
 async function cancelOrder(req, res) {
   let session;
@@ -414,10 +805,25 @@ async function cancelOrder(req, res) {
       const order = await Order.findOneAndUpdate(
         {
           _id: req.params.id,
-          status: { $in: ["pending", "processing"] },
+          status: {
+            $in: [
+              "quote_required",
+              "awaiting_quote_approval",
+              "pending",
+              "processing",
+              "pending_payment",
+            ],
+          },
+          payment_status: { $ne: "paid" },
+          payment_session_creating: { $ne: true },
         },
         {
-          $set: { status: "cancelled" },
+          $set: {
+            status: "cancelled",
+            payment_expires_at: null,
+            payment_session_creating: false,
+            payment_session_started_at: null,
+          },
         },
         {
           new: true,
@@ -432,20 +838,55 @@ async function cancelOrder(req, res) {
         throw error;
       }
 
-      for (const item of order.items) {
-        const result = await Product.updateOne(
-          { _id: item.product_id },
-          { $inc: { stock: item.quantity } },
+      if (
+        order.payment_method === "paymongo" &&
+        order.paymongo_checkout_session_id
+      ) {
+        const error = new Error(
+          "Expire the PayMongo checkout session before cancelling this order"
+        );
+        error.status = 409;
+        throw error;
+      }
+
+      if (order.payment_method === "paymongo") {
+        await Order.updateOne(
+          { _id: order._id, status: "cancelled" },
+          { $set: { payment_status: "failed" } },
           { session }
         );
+        order.payment_status = "failed";
+      }
 
-        if (result.matchedCount !== 1) {
-          throw new Error(
-            "Cannot restore inventory for a missing product"
+      const stockWasReserved = order.stock_reserved !== false;
+
+      if (stockWasReserved) {
+        for (const item of order.items) {
+          const result = await Product.updateOne(
+            { _id: item.product_id },
+            { $inc: { stock: item.quantity } },
+            { session }
           );
+
+          if (result.matchedCount !== 1) {
+            throw new Error(
+              "Cannot restore inventory for a missing product"
+            );
+          }
         }
       }
 
+      const reservationUpdated = await Order.updateOne(
+        { _id: order._id, status: "cancelled" },
+        { $set: { stock_reserved: false } },
+        { session }
+      );
+
+      if (reservationUpdated.matchedCount !== 1) {
+        throw new Error("Cannot update the cancelled order reservation");
+      }
+
+      order.stock_reserved = false;
       cancelledOrder = order;
     });
 
@@ -514,7 +955,12 @@ async function updateOrderStatus(req, res) {
         status: previousStatus,
       },
       {
-        $set: { status },
+        $set: {
+          status,
+          ...(status === "completed"
+            ? { payment_status: "paid" }
+            : {}),
+        },
       },
       {
         new: true,
@@ -553,5 +999,8 @@ module.exports = {
     getMyOrders,
     getAllOrders,
     getOrderById,
+    setDeliveryQuote,
+    acceptDeliveryQuote,
+    rejectDeliveryQuote,
     updateOrderStatus,
 };

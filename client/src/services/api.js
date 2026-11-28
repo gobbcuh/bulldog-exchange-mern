@@ -1,7 +1,25 @@
 
-const API_BASE_URL =
+const configuredApiBaseUrl =
   import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:5000/api";
+  (import.meta.env.DEV ? "http://localhost:5000/api" : "");
+
+const isRelativeApiUrl =
+  configuredApiBaseUrl.startsWith("/") &&
+  !configuredApiBaseUrl.startsWith("//");
+
+if (
+  !configuredApiBaseUrl ||
+  configuredApiBaseUrl.startsWith("//") ||
+  (import.meta.env.PROD &&
+    !isRelativeApiUrl &&
+    !configuredApiBaseUrl.startsWith("https://"))
+) {
+  throw new Error(
+    "Set VITE_API_BASE_URL to an HTTPS API URL or a same-origin /api path before building for production."
+  );
+}
+
+export const API_BASE_URL = configuredApiBaseUrl.replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(message, status) {

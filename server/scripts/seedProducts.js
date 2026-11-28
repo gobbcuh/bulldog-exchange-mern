@@ -110,6 +110,12 @@ const products = [
 
 async function seedProducts() {
   try {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "Sample merchandise cannot be seeded in production. Add verified catalog data through the admin tools."
+      );
+    }
+
     await connectDB();
 
     const names = products.map((product) => product.name);

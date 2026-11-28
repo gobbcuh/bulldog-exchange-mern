@@ -4,6 +4,9 @@ require("dotenv").config();
 const mongoose = require("mongoose");
 const app = require("./app");
 const connectDB = require("./config/db");
+const {
+  expireAbandonedPaymongoOrders,
+} = require("./controllers/paymentController");
 
 const PORT = Number(process.env.PORT) || 5000;
 
@@ -17,9 +20,20 @@ async function startServer() {
       );
     });
 
+    const paymentExpiryTimer = setInterval(() => {
+      expireAbandonedPaymongoOrders().catch((error) => {
+        console.error(
+          "PayMongo expiry worker failed:",
+          error.message
+        );
+      });
+    }, 60 * 1000);
+    paymentExpiryTimer.unref();
+
     async function shutdown(signal) {
       console.log(`${signal} received. Shutting down...`);
 
+      clearInterval(paymentExpiryTimer);
       server.close(async () => {
         await mongoose.disconnect();
         process.exit(0);

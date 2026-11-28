@@ -1,5 +1,10 @@
 
 const mongoose = require("mongoose");
+const campusGroups = require("../../../shared/campuses.json");
+
+const allowedCampuses = campusGroups.flatMap((group) =>
+  group.campuses.map((campus) => campus.value)
+);
 
 const userSchema = new mongoose.Schema(
   {
@@ -34,6 +39,7 @@ const userSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       trim: true,
+      enum: allowedCampuses,
     },
   },
   {

@@ -78,6 +78,41 @@
   font-size: 14px;
 }
 
+.admin-order-fulfillment {
+  margin: 18px 0;
+  padding: 16px;
+  border-radius: 10px;
+  background: #101828;
+  overflow-wrap: anywhere;
+}
+
+.admin-order-fulfillment p {
+  margin: 8px 0 0;
+  color: #a9bddb;
+  line-height: 1.5;
+}
+
+.admin-quote-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.admin-quote-editor label {
+  color: #a9bddb;
+  font-size: 13px;
+}
+
+.admin-quote-editor input {
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid #53627a;
+  border-radius: 7px;
+  background: #101828;
+  color: #f5f7fc;
+  font: inherit;
+}
+
 .admin-order-bottom {
   align-items: center;
 }

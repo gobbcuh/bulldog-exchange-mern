@@ -15,7 +15,7 @@ async function createAdmin() {
   const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
   const name = "Bulldog Exchange Admin";
-  const campus = "manila";
+  const campus = "nu manila";
 
   if (
     !email ||

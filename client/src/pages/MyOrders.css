@@ -1,0 +1,176 @@
+.my-orders-page {
+  width: min(100% - 32px, 920px);
+  min-height: 65vh;
+  margin: 0 auto;
+  padding: 48px 0 80px;
+  color: #f5f7fc;
+}
+
+.my-orders-page h1 {
+  margin: 8px 0 28px;
+  font-size: clamp(32px, 5vw, 48px);
+}
+
+.my-orders-eyebrow {
+  margin: 0;
+  color: #ffcb05;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.my-orders-list {
+  display: grid;
+  gap: 20px;
+}
+
+.my-order-card,
+.my-orders-empty {
+  padding: 24px;
+  border: 1px solid #30405d;
+  border-radius: 14px;
+  background: #172238;
+}
+
+.my-order-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.my-order-heading h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.my-order-heading p,
+.my-order-help {
+  color: #a9bddb;
+  line-height: 1.6;
+}
+
+.my-order-heading > span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #263650;
+  text-transform: capitalize;
+  white-space: nowrap;
+}
+
+.my-order-items {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-order-items li,
+.my-order-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.my-order-items li {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #30405d;
+}
+
+.my-order-details {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.my-order-details dt {
+  color: #a9bddb;
+}
+
+.my-order-details dd {
+  margin: 0;
+  text-align: right;
+}
+
+.my-order-help {
+  margin: 18px 0 0;
+}
+
+.my-order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.my-order-actions button,
+.my-order-pay-button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffcb05;
+  color: #101828;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.my-order-actions .my-order-secondary {
+  border: 1px solid #71819a;
+  background: transparent;
+  color: #f5f7fc;
+}
+
+.my-order-actions button:disabled,
+.my-order-pay-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.my-order-pay-button {
+  margin-top: 16px;
+}
+
+.my-orders-notice,
+.my-orders-error {
+  margin: 16px 0;
+  padding: 12px 16px;
+  border-radius: 8px;
+  line-height: 1.5;
+}
+
+.my-orders-notice {
+  background: #203c31;
+  color: #b7f0c8;
+}
+
+.my-orders-error {
+  background: #452b32;
+  color: #ffb8b8;
+}
+
+.my-orders-empty p {
+  color: #a9bddb;
+}
+
+@media (max-width: 560px) {
+  .my-order-card,
+  .my-orders-empty {
+    padding: 18px;
+  }
+
+  .my-order-heading {
+    flex-direction: column;
+  }
+
+  .my-order-items li,
+  .my-order-details > div {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .my-order-details dd {
+    text-align: left;
+  }
+}

@@ -1,0 +1,38 @@
+[
+  {
+    "region": "Metro Manila",
+    "campuses": [
+      { "value": "nu manila", "label": "NU Manila" },
+      { "value": "nu nazareth school", "label": "NU Nazareth School" },
+      { "value": "nu moa", "label": "NU MOA" },
+      { "value": "nu fairview", "label": "NU Fairview" },
+      { "value": "nu east ortigas", "label": "NU East Ortigas" },
+      { "value": "nu las piñas", "label": "NU Las Piñas" },
+      { "value": "nu apc", "label": "NU APC" }
+    ]
+  },
+  {
+    "region": "Luzon",
+    "campuses": [
+      { "value": "nu clark", "label": "NU Clark" },
+      { "value": "nu baliwag", "label": "NU Baliwag" },
+      { "value": "nu laguna", "label": "NU Laguna" },
+      { "value": "nu dasmariñas", "label": "NU Dasmariñas" },
+      { "value": "nu lipa", "label": "NU Lipa" }
+    ]
+  },
+  {
+    "region": "Visayas",
+    "campuses": [
+      { "value": "nu bacolod", "label": "NU Bacolod" },
+      { "value": "nu cebu", "label": "NU Cebu" },
+      { "value": "nu iloilo", "label": "NU Iloilo" }
+    ]
+  },
+  {
+    "region": "Mindanao",
+    "campuses": [
+      { "value": "nu davao", "label": "NU Davao" }
+    ]
+  }
+]

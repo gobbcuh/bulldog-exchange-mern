@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import campusGroups from "../../../shared/campuses.json";
 import { registerUser } from "../services/auth";
 import "./Register.css";
 
@@ -88,6 +89,8 @@ function Register() {
               type="email"
               placeholder="you@nu.edu.ph"
               autoComplete="email"
+              pattern="[^@]+@[Nn][Uu][.]edu[.]ph"
+              title="Use an email address ending in @nu.edu.ph."
               required
               value={email}
               onChange={(event) => {
@@ -96,24 +99,34 @@ function Register() {
               }}
               disabled={loading}
             />
+            <small>Use your official @nu.edu.ph email address.</small>
           </div>
 
           <div className="register-field">
             <label htmlFor="register-campus">Campus</label>
-            <input
+            <select
               id="register-campus"
-              type="text"
-              placeholder="e.g. Manila"
-              autoComplete="organization"
               required
-              maxLength={100}
               value={campus}
               onChange={(event) => {
                 setCampus(event.target.value);
                 setError("");
               }}
               disabled={loading}
-            />
+            >
+              <option value="" disabled>
+                Select your NU campus
+              </option>
+              {campusGroups.map((group) => (
+                <optgroup label={group.region} key={group.region}>
+                  {group.campuses.map((campus) => (
+                    <option value={campus.value} key={campus.value}>
+                      {campus.label}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
           </div>
 
           <div className="register-field">

@@ -1,5 +1,11 @@
 
-export async function createOrder(request, cart, idempotencyKey) {
+export async function createOrder(
+  request,
+  cart,
+  idempotencyKey,
+  fulfillment,
+  paymentMethod
+) {
   if (!Array.isArray(cart) || cart.length === 0) {
     throw new Error("Your cart is empty.");
   }
@@ -21,7 +27,8 @@ export async function createOrder(request, cart, idempotencyKey) {
     },
     body: JSON.stringify({
       items,
-      payment_method: "cod",
+      fulfillment,
+      payment_method: paymentMethod,
     }),
   });
 
@@ -31,6 +38,54 @@ export async function createOrder(request, cart, idempotencyKey) {
     typeof result.total_price !== "number"
   ) {
     throw new Error("The server returned an invalid order confirmation.");
+  }
+
+  return result;
+}
+
+export async function createPaymongoCheckout(request, orderId) {
+  const result = await request(
+    `/orders/${encodeURIComponent(orderId)}/paymongo-checkout`,
+    { method: "POST" }
+  );
+
+  if (
+    result?.success !== true ||
+    typeof result.checkout_url !== "string" ||
+    !result.checkout_url.startsWith("https://")
+  ) {
+    throw new Error("The server returned an invalid payment link.");
+  }
+
+  return result.checkout_url;
+}
+
+export async function fetchMyOrders(request) {
+  const result = await request("/orders/my");
+
+  if (!Array.isArray(result)) {
+    throw new Error("The server returned an invalid order list.");
+  }
+
+  return result;
+}
+
+export async function respondToDeliveryQuote(
+  request,
+  orderId,
+  decision
+) {
+  if (!["accept", "reject"].includes(decision)) {
+    throw new Error("Invalid delivery quote decision.");
+  }
+
+  const result = await request(
+    `/orders/${encodeURIComponent(orderId)}/${decision}-quote`,
+    { method: "POST" }
+  );
+
+  if (result?.success !== true || !result.order) {
+    throw new Error("The delivery quote update was not confirmed.");
   }
 
   return result;

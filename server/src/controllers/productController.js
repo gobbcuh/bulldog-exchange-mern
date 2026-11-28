@@ -176,7 +176,14 @@ async function deleteProduct(req, res) {
     const activeOrder = await Order.exists({
       "items.product_id": product._id,
       status: {
-        $in: ["pending", "processing", "shipped"],
+        $in: [
+          "quote_required",
+          "awaiting_quote_approval",
+          "pending_payment",
+          "pending",
+          "processing",
+          "shipped",
+        ],
       },
     });
 

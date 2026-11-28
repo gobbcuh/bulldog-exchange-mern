@@ -87,6 +87,18 @@
   gap: 12px;
 }
 
+.navbar-account > a {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-decoration: none;
+}
+
+.navbar-account > a:hover {
+  color: #facc15;
+}
+
 .navbar-logout {
   padding: 6px 0;
   border: none;

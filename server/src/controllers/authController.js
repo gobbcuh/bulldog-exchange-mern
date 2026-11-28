@@ -1,7 +1,14 @@
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const campusGroups = require("../../../shared/campuses.json");
 const User = require("../models/User");
+
+const allowedCampuses = new Set(
+  campusGroups.flatMap((group) =>
+    group.campuses.map((campus) => campus.value)
+  )
+);
 
 function publicUser(user) {
   return {
@@ -56,11 +63,26 @@ async function register(req, res) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    const normalizedCampus = campus.trim().toLowerCase();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return res.status(400).json({
         success: false,
         message: "Invalid email address",
+      });
+    }
+
+    if (!allowedCampuses.has(normalizedCampus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Select a valid NU campus",
+      });
+    }
+
+    if (!normalizedEmail.endsWith("@nu.edu.ph")) {
+      return res.status(400).json({
+        success: false,
+        message: "Use an email address ending in @nu.edu.ph",
       });
     }
 
@@ -81,7 +103,7 @@ async function register(req, res) {
       name: name.trim(),
       email: normalizedEmail,
       passwordHash,
-      campus: campus.trim().toLowerCase(),
+      campus: normalizedCampus,
       role: "user",
     });
 

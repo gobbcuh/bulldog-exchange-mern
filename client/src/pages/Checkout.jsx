@@ -4,7 +4,10 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useCart } from "../context/CartContext";
 import { useAuthenticatedApi } from "../hooks/useAuthenticatedApi";
-import { createOrder } from "../services/orders";
+import {
+  createOrder,
+  createPaymongoCheckout,
+} from "../services/orders";
 import "./Checkout.css";
 
 const ATTEMPT_PREFIX = "bulldog-checkout-attempt-";
@@ -25,6 +28,17 @@ function snapshotCart(cart) {
     quantity: item.quantity,
     ...(item.size ? { size: item.size } : {}),
   }));
+}
+
+function snapshotFulfillment(method, phone, area, address) {
+  return {
+    method,
+    phone: phone.trim(),
+    pickup_location: method === "pickup" ? "nu manila" : null,
+    delivery_area: method === "delivery" ? area : null,
+    delivery_address:
+      method === "delivery" ? address.trim() : null,
+  };
 }
 
 function fingerprint(items) {
@@ -64,7 +78,13 @@ function readAttempt(customerId) {
           item.quantity > 0 &&
           (item.size === undefined ||
             typeof item.size === "string")
-      )
+      ) ||
+      !attempt.fulfillment ||
+      !["pickup", "delivery"].includes(
+        attempt.fulfillment.method
+      ) ||
+      typeof attempt.fulfillment.phone !== "string" ||
+      !["cod", "paymongo"].includes(attempt.paymentMethod)
     ) {
       throw new Error("Invalid saved checkout attempt.");
     }
@@ -91,6 +111,12 @@ function Checkout() {
   const [error, setError] = useState("");
   const [confirmation, setConfirmation] = useState(null);
   const [attempt, setAttempt] = useState(null);
+  const [phone, setPhone] = useState("");
+  const [fulfillmentMethod, setFulfillmentMethod] =
+    useState("pickup");
+  const [deliveryArea, setDeliveryArea] = useState("manila");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("cod");
 
   const customerId = user?.id;
 
@@ -145,6 +171,13 @@ function Checkout() {
           customerId,
           key: crypto.randomUUID(),
           items: snapshotCart(cart),
+          fulfillment: snapshotFulfillment(
+            fulfillmentMethod,
+            phone,
+            deliveryArea,
+            deliveryAddress
+          ),
+          paymentMethod,
         };
 
         // Save BEFORE sending the request.
@@ -159,11 +192,29 @@ function Checkout() {
       const result = await createOrder(
         request,
         currentAttempt.items,
-        currentAttempt.key
+        currentAttempt.key,
+        currentAttempt.fulfillment,
+        currentAttempt.paymentMethod
       );
 
-      // A confirmed response means the original attempt
-      // is complete, whether new or replayed.
+      if (result.status === "pending_payment") {
+        const checkoutUrl = await createPaymongoCheckout(
+          request,
+          result.order_id
+        );
+
+        sessionStorage.removeItem(storageKey(customerId));
+        if (
+          fingerprint(snapshotCart(cart)) ===
+          fingerprint(currentAttempt.items)
+        ) {
+          clearCart();
+        }
+
+        window.location.assign(checkoutUrl);
+        return;
+      }
+
       sessionStorage.removeItem(storageKey(customerId));
       setAttempt(null);
       setConfirmation(result);
@@ -176,6 +227,8 @@ function Checkout() {
       ) {
         clearCart();
       }
+
+      setPhone("");
     } catch (err) {
       if (err.status === 0 || err.status === 409) {
         setError(
@@ -195,6 +248,9 @@ function Checkout() {
   }
 
   if (confirmation) {
+    const isQuoteRequest =
+      confirmation.status === "quote_required";
+
     return (
       <section className="checkout-page">
         <div className="checkout-confirmation">
@@ -209,10 +265,16 @@ function Checkout() {
             BULLDOG EXCHANGE
           </p>
 
-          <h1>Order Confirmed!</h1>
+          <h1>
+            {isQuoteRequest
+              ? "Delivery Request Submitted"
+              : "Order Confirmed!"}
+          </h1>
 
           <p className="checkout-confirmation-message">
-            Your order has been placed successfully.
+            {isQuoteRequest
+              ? "The store will contact you to confirm the delivery fee. Your order is not final until you approve the quote."
+              : "Your order has been placed successfully."}
           </p>
 
           <div className="checkout-confirmation-details">
@@ -222,12 +284,20 @@ function Checkout() {
             </div>
 
             <div>
-              <span>Payment Method</span>
-              <strong>Cash on Delivery</strong>
+              <span>Fulfillment</span>
+              <strong>
+                {confirmation.fulfillment_method === "delivery"
+                  ? "Delivery quote requested"
+                  : "Pickup at NU Manila"}
+              </strong>
             </div>
 
             <div className="checkout-confirmation-total">
-              <span>Total Paid on Delivery</span>
+              <span>
+                {isQuoteRequest
+                  ? "Merchandise subtotal (delivery not included)"
+                  : "Total"}
+              </span>
               <strong>
                 ₱{formatPrice(confirmation.total_price)}
               </strong>
@@ -236,9 +306,9 @@ function Checkout() {
 
           <Link
             className="checkout-confirmation-button"
-            to="/shop"
+            to="/orders"
           >
-            Continue Shopping
+            View My Orders
           </Link>
         </div>
       </section>
@@ -287,6 +357,11 @@ function Checkout() {
               not your current cart.
             </p>
           )}
+          <p>
+            Fulfillment: {activeAttempt.fulfillment.method}
+            {" · "}
+            Payment: {activeAttempt.paymentMethod}
+          </p>
         </div>
       ) : (
         <p>
@@ -294,6 +369,96 @@ function Checkout() {
           your order.
         </p>
       )}
+
+      <fieldset
+        className="checkout-fulfillment-form"
+        disabled={Boolean(activeAttempt) || isSubmitting}
+      >
+        <legend>Contact and fulfillment</legend>
+        <label>
+          Contact phone
+          <input
+            type="tel"
+            autoComplete="tel"
+            required
+            minLength={7}
+            maxLength={30}
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            placeholder="+63 9XX XXX XXXX"
+          />
+        </label>
+
+        <label>
+          Receive your order
+          <select
+            value={fulfillmentMethod}
+            onChange={(event) =>
+              setFulfillmentMethod(event.target.value)
+            }
+          >
+            <option value="pickup">Pickup at NU Manila</option>
+            <option value="delivery">Delivery (quote required)</option>
+          </select>
+        </label>
+
+        {fulfillmentMethod === "pickup" ? (
+          <p>Pickup location: NU Manila. No delivery fee.</p>
+        ) : (
+          <>
+            <label>
+              Delivery area
+              <select
+                value={deliveryArea}
+                onChange={(event) =>
+                  setDeliveryArea(event.target.value)
+                }
+              >
+                <option value="manila">Manila</option>
+                <option value="laguna">Laguna</option>
+                <option value="cebu">Cebu</option>
+                <option value="davao">Davao</option>
+              </select>
+            </label>
+            <label>
+              Full delivery address
+              <textarea
+                required
+                minLength={10}
+                maxLength={500}
+                rows={3}
+                value={deliveryAddress}
+                onChange={(event) =>
+                  setDeliveryAddress(event.target.value)
+                }
+                placeholder="House/building, street, barangay, city, and postal code"
+              />
+            </label>
+            <p>
+              Delivery is a quote-first request. The store will contact
+              you with the fee; you can approve or decline it in My Orders.
+            </p>
+          </>
+        )}
+
+        <label>
+          Payment method
+          <select
+            value={paymentMethod}
+            onChange={(event) =>
+              setPaymentMethod(event.target.value)
+            }
+          >
+            <option value="cod">Cash on delivery / pickup</option>
+            <option value="paymongo">Pay online with PayMongo</option>
+          </select>
+        </label>
+        {paymentMethod === "paymongo" && (
+          <p>
+            Online payment starts after any delivery quote is accepted.
+          </p>
+        )}
+      </fieldset>
 
       {cart.length > 0 && (
         <div className="checkout-items">
@@ -325,13 +490,14 @@ function Checkout() {
         <h2>Order Summary</h2>
 
         <p>Items in current cart: {cartCount}</p>
-        <p>Payment Method: Cash on Delivery</p>
-
         <p>
           <strong>
-            Current Cart Total: ₱{formatPrice(cartTotal)}
+            Merchandise subtotal: ₱{formatPrice(cartTotal)}
           </strong>
         </p>
+        {fulfillmentMethod === "delivery" && (
+          <p>Delivery fee: quoted after you submit this request.</p>
+        )}
 
         <p>
           {activeAttempt
@@ -356,7 +522,11 @@ function Checkout() {
             ? "Processing..."
             : activeAttempt
               ? "Retry Pending Checkout"
-              : "Place Order"}
+              : fulfillmentMethod === "delivery"
+                ? "Request Delivery Quote"
+                : paymentMethod === "paymongo"
+                  ? "Continue to PayMongo"
+                  : "Place Pickup Order"}
         </button>
       </div>
     </section>
